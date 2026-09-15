@@ -37,7 +37,7 @@ class SettingsActivity : AppCompatActivity() {
         val scroll = ScrollView(this).apply { setBackgroundColor(0xFF111111.toInt()) }
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(14), dp(14), dp(14), dp(30))
+            setPadding(dp(14f), dp(14f), dp(14f), dp(30f))
         }
         scroll.addView(root)
         setContentView(scroll)

@@ -34,9 +34,9 @@ data class KbTheme(
             keyTextColor = 0xFFFFFFFF.toInt(),
             keyBorderColor = 0x00000000,
             keyBorderWidthDp = 0f,
-            keyCornerRadiusDp = 8f,
-            fontSizeSp = 19f,
-            keyboardHeightDp = 240,
+            keyCornerRadiusDp = 6f,
+            fontSizeSp = 20f,
+            keyboardHeightDp = 302,      // Chuan AOSP / Laban Key (302.4dp)
             keyGapDp = 2f,
             rowGapDp = 4f,
             soundEnabled = true,
@@ -44,8 +44,8 @@ data class KbTheme(
             telexEnabled = true,
             animEnabled = true,
             popupEnabled = true,
-            showNumberRow = true,      // Luon hien nhu Laban
-            showToolbar = true          // Toolbar tren cung
+            showNumberRow = true,
+            showToolbar = true
         )
     }
 }

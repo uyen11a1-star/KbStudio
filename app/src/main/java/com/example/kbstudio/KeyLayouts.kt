@@ -12,25 +12,21 @@ object KeyLayouts {
     private fun back() = k("⌫", KeyDef.CODE_BACKSPACE, 1.5f)
     private fun enter() = k("⏎", KeyDef.CODE_ENTER, 1.5f)
 
-    // space long-press -> mic
     private fun space() = KeyDef(" ", " ", KeyDef.CODE_SPACE, 4f,
-        longPressDirect = KeyDef("🎤", "", KeyDef.CODE_VOICE))
+        longPressDirect = KeyDef("ic_mic", "", KeyDef.CODE_VOICE))
 
-    // ?123 long-press -> doi ban phim
     private fun toSym() = KeyDef("?123", "", KeyDef.CODE_SYMBOLS, 1.5f,
-        longPressDirect = KeyDef("🌐", "", KeyDef.CODE_LANG))
+        longPressDirect = KeyDef("ic_lang", "", KeyDef.CODE_LANG))
     private fun toAbc() = KeyDef("ABC", "", KeyDef.CODE_ABC, 1.5f,
-        longPressDirect = KeyDef("🌐", "", KeyDef.CODE_LANG))
+        longPressDirect = KeyDef("ic_lang", "", KeyDef.CODE_LANG))
 
-    private fun emoji() = k("😊", KeyDef.CODE_EMOJI, 1f)
-
-    // Toolbar tren cung - kieu Laban
+    // TOOLBAR: dung icon vector thay emoji
     val TOOLBAR: List<KeyDef> = listOf(
-        k("🎤", KeyDef.CODE_VOICE, 1f),
-        k("😊", KeyDef.CODE_EMOJI, 1f),
-        k("⚙️", KeyDef.CODE_SETTINGS, 1f),
-        k("🔍", KeyDef.CODE_SEARCH, 1f),
-        k("⌄", KeyDef.CODE_HIDE, 1f)
+        KeyDef("ic_mic", "", KeyDef.CODE_VOICE, 1f),
+        KeyDef("ic_emoji", "", KeyDef.CODE_EMOJI, 1f),
+        KeyDef("ic_settings", "", KeyDef.CODE_SETTINGS, 1f),
+        KeyDef("ic_search", "", KeyDef.CODE_SEARCH, 1f),
+        KeyDef("ic_hide", "", KeyDef.CODE_HIDE, 1f)
     )
 
     private val aLp = listOf("á","à","ả","ã","ạ","ă","â","ấ","ầ","ẩ","ẫ","ậ","ắ","ằ","ẳ","ẵ","ặ")
@@ -46,7 +42,6 @@ object KeyLayouts {
         c("6"), c("7"), c("8"), c("9"), c("0")
     )
 
-    // Tat ca hang chinh deu = 10 units
     val LETTERS: List<List<KeyDef>> = listOf(
         listOf("q","w","e","r","t","y","u","i","o","p").map {
             when (it) { "e" -> c(it, lp = eLp); "i" -> c(it, lp = iLp)
@@ -58,14 +53,13 @@ object KeyLayouts {
                 else -> c(it) }
         },
         listOf(shift()) + listOf("z","x","c","v","b","n","m").map { c(it) } + listOf(back()),
-        // Hang cuoi kieu Laban: ?123 , SPACE . ? 🔍
-        listOf(toSym(), c(",", 1f), space(), c(".", 1f), c("?", 1f), k("🔍", KeyDef.CODE_SEARCH, 1.5f))
+        listOf(toSym(), c(",", 1f), space(), c(".", 1f), c("?", 1f), k("ic_search", KeyDef.CODE_SEARCH, 1.5f))
     )
 
     val SYMBOLS: List<List<KeyDef>> = listOf(
         listOf("1","2","3","4","5","6","7","8","9","0").map { c(it) },
         listOf("@","#","$","%","&","-","+","(",")","/").map { c(it) },
         listOf(c("*", 1.5f)) + listOf("\"","'",":",";","!","?").map { c(it) } + listOf(back()),
-        listOf(toAbc(), c(",", 1f), space(), c(".", 1f), c("?", 1f), k("🔍", KeyDef.CODE_SEARCH, 1.5f))
+        listOf(toAbc(), c(",", 1f), space(), c(".", 1f), c("?", 1f), k("ic_search", KeyDef.CODE_SEARCH, 1.5f))
     )
 }

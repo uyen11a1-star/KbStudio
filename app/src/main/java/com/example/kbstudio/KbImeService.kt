@@ -78,7 +78,7 @@ class KbImeService : InputMethodService(), KeyboardView.Listener {
                 val ok = ic.performEditorAction(EditorInfo.IME_ACTION_SEARCH)
                 if (!ok) ic.commitText("?", 1)
             }
-            KeyDef.CODE_SETTINGS -> openAppSettings()
+            KeyDef.CODE_SETTINGS -> openSettings()
             KeyDef.CODE_LEFT -> ic.sendKeyEvent(android.view.KeyEvent(
                 android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_DPAD_LEFT))
             KeyDef.CODE_RIGHT -> ic.sendKeyEvent(android.view.KeyEvent(
@@ -90,10 +90,13 @@ class KbImeService : InputMethodService(), KeyboardView.Listener {
         }
     }
 
-    private fun openAppSettings() {
+    private fun openSettings() {
+        // An ban phim truoc khi mo settings
+        requestHideSelf(0)
         try {
             val intent = Intent(this, SettingsActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
             startActivity(intent)
         } catch (e: Exception) {

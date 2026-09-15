@@ -3,6 +3,7 @@ package com.example.kbstudio
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.*
+import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -12,6 +13,7 @@ import android.view.MotionEvent
 import android.view.SoundEffectConstants
 import android.view.View
 import android.view.animation.DecelerateInterpolator
+import androidx.core.content.ContextCompat
 import java.util.concurrent.ConcurrentHashMap
 
 class KeyboardView @JvmOverloads constructor(
@@ -43,9 +45,9 @@ class KeyboardView @JvmOverloads constructor(
     private val popupRects = ArrayList<RectF>()
 
     private val imageCache = ConcurrentHashMap<String, Bitmap?>()
+    private val drawableCache = ConcurrentHashMap<String, Drawable?>()
 
     private val keyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
-    private val toolbarKeyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
     private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL; color = 0x44000000
     }
@@ -95,7 +97,7 @@ class KeyboardView @JvmOverloads constructor(
         const val KIND_LETTERS = 0
         const val KIND_SYMBOLS = 1
         const val KIND_EMOJI = 2
-        const val TOOLBAR_HEIGHT_DP = 26f
+        const val TOOLBAR_HEIGHT_DP = 30f
     }
 
     init {
@@ -107,6 +109,7 @@ class KeyboardView @JvmOverloads constructor(
         theme = t
         themeManager = ThemeManager(context)
         imageCache.clear()
+        drawableCache.clear()
         loadBgBitmap()
         requestLayout()
         invalidate()
@@ -158,6 +161,18 @@ class KeyboardView @JvmOverloads constructor(
         }.start()
     }
 
+    /** Load icon tu drawable resource (ic_mic, ic_settings...) */
+    private fun loadDrawableIcon(name: String): Drawable? {
+        drawableCache[name]?.let { return it }
+        return try {
+            val resId = context.resources.getIdentifier(name, "drawable", context.packageName)
+            if (resId == 0) return null
+            val d = ContextCompat.getDrawable(context, resId)
+            drawableCache[name] = d
+            d
+        } catch (_: Exception) { null }
+    }
+
     private fun loadKeyImage(label: String): Bitmap? {
         imageCache[label]?.let { return it }
         val uri = themeManager.getKeyImage(label) ?: return null
@@ -204,7 +219,6 @@ class KeyboardView @JvmOverloads constructor(
         val innerH = h - pad * 2
         if (innerH <= 0f || innerW <= 0f) return
 
-        // Toolbar cao co dinh, cac hang khac chia deu phan con lai
         val toolbarH = if (toolbarVisible) dp(TOOLBAR_HEIGHT_DP) else 0f
         val totalGaps = rowGap * (rows.size - 1)
         val remainingH = innerH - toolbarH - totalGaps
@@ -307,7 +321,10 @@ class KeyboardView @JvmOverloads constructor(
 
         keys.forEach { entry ->
             val rect = entry.rect
-            val img = loadKeyImage(entry.key.label)
+            val label = entry.key.label
+
+            // Uu tien 1: anh custom tren phim
+            val img = loadKeyImage(label)
             if (img != null) {
                 val inset = dp(if (entry.isToolbar) 4f else 8f)
                 val dst = RectF(rect.left + inset, rect.top + inset,
@@ -316,18 +333,36 @@ class KeyboardView @JvmOverloads constructor(
                 val cx = dst.centerX(); val cy = dst.centerY()
                 val square = RectF(cx - side/2, cy - side/2, cx + side/2, cy + side/2)
                 canvas.drawBitmap(img, null, square, null)
-            } else {
-                val label = displayLabel(entry.key)
-                var size = sp(if (entry.isToolbar) theme.fontSizeSp - 4f else theme.fontSizeSp)
-                textPaint.textSize = size
-                textPaint.color = theme.keyTextColor
-                val maxW = rect.width() - dp(6f)
-                while (textPaint.measureText(label) > maxW && size > sp(8f)) {
-                    size -= sp(0.5f); textPaint.textSize = size
-                }
-                val ty = rect.centerY() - (textPaint.descent() + textPaint.ascent()) / 2f
-                canvas.drawText(label, rect.centerX(), ty, textPaint)
+                return@forEach
             }
+
+            // Uu tien 2: icon vector tu drawable (ic_mic, ic_settings...)
+            if (label.startsWith("ic_")) {
+                val d = loadDrawableIcon(label)
+                if (d != null) {
+                    val inset = dp(if (entry.isToolbar) 5f else 7f)
+                    val size = minOf(rect.width(), rect.height()) - inset * 2
+                    val cx = rect.centerX().toInt()
+                    val cy = rect.centerY().toInt()
+                    val half = (size / 2).toInt()
+                    d.setBounds(cx - half, cy - half, cx + half, cy + half)
+                    // Doi mau icon theo theme
+                    d.setTint(theme.keyTextColor)
+                    d.draw(canvas)
+                    return@forEach
+                }
+            }
+
+            // Uu tien 3: text binh thuong
+            var size = sp(if (entry.isToolbar) theme.fontSizeSp - 4f else theme.fontSizeSp)
+            textPaint.textSize = size
+            textPaint.color = theme.keyTextColor
+            val maxW = rect.width() - dp(6f)
+            while (textPaint.measureText(label) > maxW && size > sp(8f)) {
+                size -= sp(0.5f); textPaint.textSize = size
+            }
+            val ty = rect.centerY() - (textPaint.descent() + textPaint.ascent()) / 2f
+            canvas.drawText(label, rect.centerX(), ty, textPaint)
         }
 
         drawLetterPreview(canvas)

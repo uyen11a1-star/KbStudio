@@ -49,13 +49,16 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // An ban phim he thong khi dang xem Settings
+        // An triet de ban phim he thong
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
         imm?.hideSoftInputFromWindow(window.decorView.windowToken, 0)
+        // Request focus vao root de tranh EditText tu dong focus
+        window.decorView.requestFocus()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Chan ban phim he thong hien thi
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
         tm = ThemeManager(this)
 
@@ -63,6 +66,8 @@ class SettingsActivity : AppCompatActivity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(14f), dp(14f), dp(14f), dp(30f))
+            isFocusable = true
+            isFocusableInTouchMode = true
         }
         scroll.addView(root)
         setContentView(scroll)
@@ -119,8 +124,8 @@ class SettingsActivity : AppCompatActivity() {
         root.addView(colorPicker("Màu viền ô", tm.keyBorderColor) { tm.keyBorderColor = it; refresh() })
 
         root.addView(section("📏 Kích thước"))
-        root.addView(slider("Cỡ chữ (sp)", 12f, 30f, tm.fontSizeSp) { tm.fontSizeSp = it; refresh() })
-        root.addView(slider("Chiều cao bàn phím (dp)", 180f, 340f, tm.keyboardHeightDp.toFloat()) {
+        root.addView(slider("Cỡ chữ (sp)", 12f, 32f, tm.fontSizeSp) { tm.fontSizeSp = it; refresh() })
+        root.addView(slider("Chiều cao bàn phím (dp)", 200f, 400f, tm.keyboardHeightDp.toFloat()) {
             tm.keyboardHeightDp = it.toInt(); refresh()
         })
         root.addView(slider("Bo góc phím (dp)", 0f, 25f, tm.keyCornerRadiusDp) { tm.keyCornerRadiusDp = it; refresh() })
@@ -157,7 +162,7 @@ class SettingsActivity : AppCompatActivity() {
         listOf("q","w","e","r","t","y","u","i","o","p",
             "a","s","d","f","g","h","j","k","l",
             "z","x","c","v","b","n","m",
-            "space","enter","?123","😊","shift","⌫").forEach { label ->
+            "space","enter","?123","shift","⌫").forEach { label ->
             val b = Button(this).apply {
                 text = label; textSize = 11f
                 setPadding(dp(8f), 0, dp(8f), 0)
@@ -181,6 +186,9 @@ class SettingsActivity : AppCompatActivity() {
             tm.resetAll(); refresh()
             Toast.makeText(this, "Đã reset", Toast.LENGTH_SHORT).show()
         })
+
+        // Dam bao root duoc focus, khong co EditText nao focus
+        root.requestFocus()
     }
 
     private fun showKeyImageDialog(label: String) {

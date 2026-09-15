@@ -204,9 +204,9 @@ class KeyboardView @JvmOverloads constructor(
             bgPaint.color = Color.argb(120, 0, 0, 0)
             canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), bgPaint)
         } else {
-            if (theme.bgColorEnd != null) {
+            val bgEnd = theme.bgColorEnd; if (bgEnd != null) {
                 bgPaint.shader = LinearGradient(0f, 0f, 0f, height.toFloat(),
-                    theme.bgColor, theme.bgColorEnd, Shader.TileMode.CLAMP)
+                    theme.bgColor, bgEnd, Shader.TileMode.CLAMP)
             } else bgPaint.shader = null
             bgPaint.color = theme.bgColor
             canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), bgPaint)
@@ -231,9 +231,9 @@ class KeyboardView @JvmOverloads constructor(
                 keyPaint.shader = null
                 keyPaint.color = theme.keyPressedColor
             } else {
-                if (theme.keyColorEnd != null) {
+                val keyEnd = theme.keyColorEnd; if (keyEnd != null) {
                     keyPaint.shader = LinearGradient(0f, scaled.top, 0f, scaled.bottom,
-                        theme.keyColor, theme.keyColorEnd, Shader.TileMode.CLAMP)
+                        theme.keyColor, keyEnd, Shader.TileMode.CLAMP)
                 } else keyPaint.shader = null
                 keyPaint.color = theme.keyColor
             }
@@ -404,7 +404,7 @@ class KeyboardView @JvmOverloads constructor(
         repeatRunnable = null
     }
 
-    private fun cancelLongPress() {
+    private fun cancelMyLongPress() {
         longPressRunnable?.let { repeatHandler.removeCallbacks(it) }
         longPressRunnable = null
     }
@@ -459,7 +459,7 @@ class KeyboardView @JvmOverloads constructor(
                 return true
             }
             MotionEvent.ACTION_UP -> {
-                cancelLongPress()
+                cancelMyLongPress()
                 if (popupKey != null) {
                     val sel = hitPopup(event.x, event.y)
                     if (sel >= 0) {
@@ -483,7 +483,7 @@ class KeyboardView @JvmOverloads constructor(
                 return true
             }
             MotionEvent.ACTION_CANCEL -> {
-                cancelRepeat(); cancelLongPress(); hidePopup()
+                cancelRepeat(); cancelMyLongPress(); hidePopup()
                 pressedIndex = -1; downIndex = -1
                 invalidate()
                 return true

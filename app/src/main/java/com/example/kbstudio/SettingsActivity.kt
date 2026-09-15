@@ -16,7 +16,6 @@ class SettingsActivity : AppCompatActivity() {
 
     private lateinit var tm: ThemeManager
     private lateinit var preview: KeyboardView
-
     private var pendingImageKey: String? = null
 
     private val pickBgImage = registerForActivityResult(
@@ -59,22 +58,13 @@ class SettingsActivity : AppCompatActivity() {
 
         root.addView(title("⌨️ Tùy chỉnh bàn phím"))
         root.addView(TextView(this).apply {
-            text = "💡 Nhấn giữ 1 phím trong khung xem trước để gán ảnh cho phím đó"
+            text = "💡 Giữ space = mic, giữ ?123 = đổi bàn phím, giữ a/e/o/u/i/y/d = biến thể"
             setTextColor(0xFF888888.toInt()); textSize = 12f
             setPadding(0, 0, 0, dp(10f))
         })
 
         preview = KeyboardView(this).apply {
             previewMode = true; isFocusable = false
-            setOnLongClickListener {
-                showKeyPickerDialog()
-                true
-            }
-        }
-        // Cho phép long press trên preview -> chọn phím gán ảnh
-        preview.setOnTouchListener { v, e ->
-            if (e.action == android.view.MotionEvent.ACTION_DOWN) v.performLongClick()
-            false
         }
         root.addView(preview, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, dp(tm.keyboardHeightDp.toFloat())
@@ -82,7 +72,6 @@ class SettingsActivity : AppCompatActivity() {
         preview.setTheme(tm.load())
         preview.resetToLetters()
 
-        // Presets
         root.addView(section("🎨 Theme có sẵn"))
         val presetRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -91,51 +80,42 @@ class SettingsActivity : AppCompatActivity() {
         val presetScroll = HorizontalScrollView(this)
         PresetThemes.ALL.forEach { preset ->
             val b = Button(this).apply {
-                text = preset.name
-                textSize = 12f
+                text = preset.name; textSize = 12f
                 setOnClickListener {
                     tm.applyPreset(preset.theme)
                     refresh()
                     Toast.makeText(this@SettingsActivity, "Đã áp dụng: ${preset.name}", Toast.LENGTH_SHORT).show()
                 }
             }
-            val lp = LinearLayout.LayoutParams(
+            b.layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(6f) }
-            b.layoutParams = lp
             presetRow.addView(b)
         }
         presetScroll.addView(presetRow)
         root.addView(presetScroll)
 
-        // Colors
         root.addView(section("🎨 Màu sắc"))
         root.addView(colorPicker("Màu nền", tm.bgColor) { tm.bgColor = it; refresh() })
-        root.addView(colorPicker("Màu nền (gradient - tùy chọn)", tm.bgColorEnd) {
-            tm.bgColorEnd = it; refresh()
-        })
+        root.addView(colorPicker("Màu nền (gradient)", tm.bgColorEnd) { tm.bgColorEnd = it; refresh() })
         root.addView(rowButton("Bỏ gradient nền") { tm.bgColorEnd = null; refresh() })
         root.addView(colorPicker("Màu phím", tm.keyColor) { tm.keyColor = it; refresh() })
-        root.addView(colorPicker("Màu phím (gradient - tùy chọn)", tm.keyColorEnd) {
-            tm.keyColorEnd = it; refresh()
-        })
+        root.addView(colorPicker("Màu phím (gradient)", tm.keyColorEnd) { tm.keyColorEnd = it; refresh() })
         root.addView(rowButton("Bỏ gradient phím") { tm.keyColorEnd = null; refresh() })
         root.addView(colorPicker("Màu phím nhấn", tm.keyPressedColor) { tm.keyPressedColor = it; refresh() })
         root.addView(colorPicker("Màu chữ", tm.keyTextColor) { tm.keyTextColor = it; refresh() })
         root.addView(colorPicker("Màu viền ô", tm.keyBorderColor) { tm.keyBorderColor = it; refresh() })
 
-        // Size
         root.addView(section("📏 Kích thước"))
-        root.addView(slider("Cỡ chữ (sp)", 10f, 32f, tm.fontSizeSp) { tm.fontSizeSp = it; refresh() })
-        root.addView(slider("Chiều cao bàn phím (dp)", 180f, 420f, tm.keyboardHeightDp.toFloat()) {
+        root.addView(slider("Cỡ chữ (sp)", 12f, 30f, tm.fontSizeSp) { tm.fontSizeSp = it; refresh() })
+        root.addView(slider("Chiều cao bàn phím (dp)", 160f, 320f, tm.keyboardHeightDp.toFloat()) {
             tm.keyboardHeightDp = it.toInt(); refresh()
         })
-        root.addView(slider("Bo góc phím (dp)", 0f, 30f, tm.keyCornerRadiusDp) { tm.keyCornerRadiusDp = it; refresh() })
-        root.addView(slider("Độ dày viền (dp)", 0f, 6f, tm.keyBorderWidthDp) { tm.keyBorderWidthDp = it; refresh() })
-        root.addView(slider("Khoảng cách phím (dp)", 0f, 12f, tm.keyGapDp) { tm.keyGapDp = it; refresh() })
-        root.addView(slider("Khoảng cách hàng (dp)", 0f, 20f, tm.rowGapDp) { tm.rowGapDp = it; refresh() })
+        root.addView(slider("Bo góc phím (dp)", 0f, 25f, tm.keyCornerRadiusDp) { tm.keyCornerRadiusDp = it; refresh() })
+        root.addView(slider("Độ dày viền (dp)", 0f, 4f, tm.keyBorderWidthDp) { tm.keyBorderWidthDp = it; refresh() })
+        root.addView(slider("Khoảng cách phím (dp)", 0f, 10f, tm.keyGapDp) { tm.keyGapDp = it; refresh() })
+        root.addView(slider("Khoảng cách hàng (dp)", 0f, 16f, tm.rowGapDp) { tm.rowGapDp = it; refresh() })
 
-        // Layout
         root.addView(section("📐 Bố cục"))
         root.addView(toggle("Hiện hàng số trên cùng", tm.showNumberRow) {
             tm.showNumberRow = it; refresh()
@@ -144,47 +124,33 @@ class SettingsActivity : AppCompatActivity() {
             tm.popupEnabled = it; refresh()
         })
 
-        // Effects
         root.addView(section("🔊 Hiệu ứng"))
         root.addView(toggle("Âm thanh khi bấm", tm.soundEnabled) { tm.soundEnabled = it })
         root.addView(toggle("Rung khi bấm", tm.vibrateEnabled) { tm.vibrateEnabled = it })
-        root.addView(toggle("Hiệu ứng phím nhấn (scale)", tm.animEnabled) { tm.animEnabled = it; refresh() })
+        root.addView(toggle("Hiệu ứng phím nhấn", tm.animEnabled) { tm.animEnabled = it; refresh() })
 
-        // Vietnamese
         root.addView(section("🇻🇳 Tiếng Việt"))
         root.addView(toggle("Bật Telex", tm.telexEnabled) { tm.telexEnabled = it })
 
-        // Background image
         root.addView(section("🖼️ Ảnh nền bàn phím"))
         root.addView(rowButton("Chọn ảnh nền") { pickBgImage.launch(arrayOf("image/*")) })
         root.addView(rowButton("Xóa ảnh nền") { tm.bgImageUri = null; refresh() })
 
-        // Per-key image
         root.addView(section("🖼️ Ảnh trên từng phím"))
-        root.addView(TextView(this).apply {
-            text = "Chọn phím muốn gán ảnh:"
-            setTextColor(0xFFCCCCCC.toInt()); textSize = 13f
-            setPadding(0, 0, 0, dp(6f))
-        })
-        val keyGrid = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-        }
         val keyScroll = HorizontalScrollView(this)
-        val keysToAssign = listOf("q","w","e","r","t","y","u","i","o","p",
+        val keyGrid = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        listOf("q","w","e","r","t","y","u","i","o","p",
             "a","s","d","f","g","h","j","k","l",
             "z","x","c","v","b","n","m",
-            "space","enter","123","emoji","shift","back")
-        keysToAssign.forEach { label ->
+            "space","enter","?123","😊","shift","⌫").forEach { label ->
             val b = Button(this).apply {
-                text = label
-                textSize = 11f
+                text = label; textSize = 11f
                 setPadding(dp(8f), 0, dp(8f), 0)
                 setOnClickListener { showKeyImageDialog(label) }
             }
-            val lp = LinearLayout.LayoutParams(
+            b.layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(4f) }
-            b.layoutParams = lp
             keyGrid.addView(b)
         }
         keyScroll.addView(keyGrid)
@@ -195,7 +161,6 @@ class SettingsActivity : AppCompatActivity() {
             refresh()
         })
 
-        // Other
         root.addView(section("⚙️ Khác"))
         root.addView(rowButton("Reset về mặc định") {
             tm.resetAll(); refresh()
@@ -216,10 +181,6 @@ class SettingsActivity : AppCompatActivity() {
                         refresh() }
                 }
             }.show()
-    }
-
-    private fun showKeyPickerDialog() {
-        Toast.makeText(this, "Dùng danh sách 'Ảnh trên từng phím' bên dưới để gán ảnh", Toast.LENGTH_LONG).show()
     }
 
     private fun refresh() {
@@ -273,10 +234,7 @@ class SettingsActivity : AppCompatActivity() {
         fun rebuild(selected: Int?) {
             row.removeAllViews()
             presets.forEach { c ->
-                row.addView(makeCircle(c, c == selected) {
-                    onPick(c)
-                    rebuild(c)
-                })
+                row.addView(makeCircle(c, c == selected) { onPick(c); rebuild(c) })
             }
         }
         rebuild(current)

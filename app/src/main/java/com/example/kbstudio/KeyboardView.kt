@@ -43,18 +43,13 @@ class KeyboardView @JvmOverloads constructor(
 
     private val imageCache = ConcurrentHashMap<String, Bitmap?>()
 
-    // Paints
     private val keyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
     private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL; color = 0x55000000
+        style = Paint.Style.FILL; color = 0x44000000
     }
     private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = Paint.Align.CENTER; isFakeBoldText = false
-    }
-    private val textShadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textAlign = Paint.Align.CENTER; isFakeBoldText = false
-        color = 0x80000000.toInt()
     }
     private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
     private val ripplePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
@@ -79,10 +74,10 @@ class KeyboardView @JvmOverloads constructor(
     private var repeatRunnable: Runnable? = null
     private var longPressRunnable: Runnable? = null
     @Volatile private var repeatFired = false
+    @Volatile private var directLongPressFired = false
 
     private val scaleMap = HashMap<Int, Float>()
 
-    // Ripple
     private var rippleX = 0f
     private var rippleY = 0f
     private var rippleRadius = 0f
@@ -171,7 +166,6 @@ class KeyboardView @JvmOverloads constructor(
     private fun dp(v: Float) = v * resources.displayMetrics.density
     private fun sp(v: Float) = v * resources.displayMetrics.scaledDensity
 
-    /** Lam toi mau (dung cho gradient tu dong) */
     private fun darken(color: Int, factor: Float): Int {
         val r = (Color.red(color) * factor).toInt().coerceIn(0, 255)
         val g = (Color.green(color) * factor).toInt().coerceIn(0, 255)
@@ -184,12 +178,6 @@ class KeyboardView @JvmOverloads constructor(
         computeLayout(w.toFloat(), h.toFloat())
     }
 
-    /**
-     * Layout can bang:
-     *   - Tinh maxUnits = tong weight lon nhat trong cac hang (= 10 voi layout moi)
-     *   - unitW = chieu rong 1 "unit" chuan
-     *   - Hang nao it phim hon -> can giua
-     */
     private fun computeLayout(w: Float, h: Float) {
         keys.clear()
         val allRows = ArrayList<Pair<List<KeyDef>, Boolean>>()
@@ -199,7 +187,7 @@ class KeyboardView @JvmOverloads constructor(
         layout.forEach { allRows.add(Pair(it, false)) }
         if (allRows.isEmpty()) return
 
-        val pad = dp(3f)
+        val pad = dp(2.5f)
         val rowGap = dp(theme.rowGapDp)
         val keyGap = dp(theme.keyGapDp)
         val innerW = w - pad * 2
@@ -210,12 +198,8 @@ class KeyboardView @JvmOverloads constructor(
             row.sumOf { it.widthWeight.toDouble() }.toFloat()
         }.coerceAtLeast(1f)
 
-        // So phim nhieu nhat trong 1 hang -> quyet dinh so gap
         val maxKeysInRow = allRows.maxOf { it.first.size }
-
-        // Chieu rong 1 unit (chuan = phim QWERTY 1x)
         val unitW = (innerW - keyGap * (maxKeysInRow - 1)) / maxUnits
-
         val rowH = (innerH - rowGap * (allRows.size - 1)) / allRows.size
 
         allRows.forEachIndexed { ri, (row, isNum) ->
@@ -242,7 +226,6 @@ class KeyboardView @JvmOverloads constructor(
     }
 
     override fun onDraw(canvas: Canvas) {
-        // 1. Background
         val bmp = bgBitmap
         if (bmp != null) {
             canvas.drawBitmap(bmp, null, RectF(0f, 0f, width.toFloat(), height.toFloat()), null)
@@ -260,9 +243,8 @@ class KeyboardView @JvmOverloads constructor(
 
         val radius = dp(theme.keyCornerRadiusDp)
         val borderW = dp(theme.keyBorderWidthDp)
-        val shadowOffset = dp(2.5f)
+        val shadowOffset = dp(2f)
 
-        // 2. Keys: pass 1 - shadow + background
         keys.forEachIndexed { i, entry ->
             val rect = entry.rect
             val pressed = i == pressedIndex
@@ -275,19 +257,16 @@ class KeyboardView @JvmOverloads constructor(
                 cy + (rect.bottom - cy) * scale
             )
 
-            // Shadow (khong ve khi phim dang nhan)
             if (!pressed) {
                 val shadowRect = RectF(scaled.left, scaled.top + shadowOffset,
                     scaled.right, scaled.bottom + shadowOffset)
                 canvas.drawRoundRect(shadowRect, radius, radius, shadowPaint)
             }
 
-            // Key background
             if (pressed) {
                 keyPaint.shader = null
                 keyPaint.color = theme.keyPressedColor
             } else {
-                // Auto gradient neu user chua chon
                 val keyEnd = theme.keyColorEnd ?: darken(theme.keyColor, 0.78f)
                 keyPaint.shader = LinearGradient(0f, scaled.top, 0f, scaled.bottom,
                     theme.keyColor, keyEnd, Shader.TileMode.CLAMP)
@@ -301,13 +280,11 @@ class KeyboardView @JvmOverloads constructor(
             }
         }
 
-        // 3. Ripple
         if (rippleActive && rippleAlpha > 0) {
             ripplePaint.color = Color.argb(rippleAlpha, 255, 255, 255)
             canvas.drawCircle(rippleX, rippleY, rippleRadius, ripplePaint)
         }
 
-        // 4. Labels
         keys.forEach { entry ->
             val rect = entry.rect
             val img = loadKeyImage(entry.key.label)
@@ -333,51 +310,36 @@ class KeyboardView @JvmOverloads constructor(
             }
         }
 
-        // 5. Letter bubble preview (khi nhan phim chu, khong co long-press popup)
         drawLetterPreview(canvas)
-
-        // 6. Long-press popup
         popupKey?.let { drawPopup(canvas, it) }
     }
 
-    /**
-     * Bubble preview chu dang nhan (kieu iOS).
-     * Chi hien khi:
-     *  - co phim dang nhan (pressedIndex >= 0)
-     *  - khong dang show popup long-press
-     *  - phim la chu cai (khong phai space, enter...)
-     */
     private fun drawLetterPreview(canvas: Canvas) {
         if (pressedIndex < 0 || pressedIndex >= keys.size) return
         if (popupKey != null) return
+        if (directLongPressFired) return
         val entry = keys[pressedIndex]
         if (entry.key.code != KeyDef.CODE_CHAR) return
         if (entry.key.output.length != 1) return
         val c = entry.key.output[0]
-        if (!c.isLetterOrDigit()) return
-        if (entry.key.output == " ") return
+        if (!c.isLetter()) return   // chi chu cai, khong bubble cho so/dau
 
         val label = displayLabel(entry.key)
-        val bubbleW = dp(54f)
-        val bubbleH = dp(68f)
+        val bubbleW = dp(48f)
+        val bubbleH = dp(60f)
         val cx = entry.rect.centerX()
-        val bottomY = entry.rect.top - dp(6f)
+        val bottomY = entry.rect.top - dp(5f)
         val topY = bottomY - bubbleH
 
         val rect = RectF(cx - bubbleW/2, topY, cx + bubbleW/2, bottomY)
-        // Day vao trong view neu tran
         if (rect.left < dp(2f)) rect.offset(dp(2f) - rect.left, 0f)
         if (rect.right > width - dp(2f)) rect.offset(width - dp(2f) - rect.right, 0f)
 
-        // Shadow
         val sh = RectF(rect.left, rect.top + dp(3f), rect.right, rect.bottom + dp(3f))
         canvas.drawRoundRect(sh, dp(12f), dp(12f), shadowPaint)
-
-        // Bubble
         canvas.drawRoundRect(rect, dp(12f), dp(12f), bubblePaint)
         canvas.drawRoundRect(rect, dp(12f), dp(12f), bubbleBorderPaint)
 
-        // Text
         textPaint.textSize = sp(theme.fontSizeSp + 10f)
         textPaint.color = theme.keyTextColor
         val ty = rect.centerY() - (textPaint.descent() + textPaint.ascent()) / 2f
@@ -400,7 +362,6 @@ class KeyboardView @JvmOverloads constructor(
         if (top < dp(4f)) top = keyRect.bottom + dp(6f)
 
         val popupRect = RectF(left, top, left + popupW, top + popupH)
-
         val sh = RectF(popupRect.left, popupRect.top + dp(3f),
             popupRect.right, popupRect.bottom + dp(3f))
         canvas.drawRoundRect(sh, dp(10f), dp(10f), shadowPaint)
@@ -460,14 +421,12 @@ class KeyboardView @JvmOverloads constructor(
     private fun startRipple(x: Float, y: Float) {
         if (!theme.animEnabled) return
         rippleAnimator?.cancel()
-        rippleX = x
-        rippleY = y
-        rippleActive = true
+        rippleX = x; rippleY = y; rippleActive = true
         rippleAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 320
             addUpdateListener {
                 val p = it.animatedValue as Float
-                rippleRadius = dp(90f) * p
+                rippleRadius = dp(80f) * p
                 rippleAlpha = ((1f - p) * 180).toInt().coerceIn(0, 255)
                 invalidate()
             }
@@ -477,8 +436,7 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun endRipple() {
         rippleAnimator?.cancel()
-        rippleActive = false
-        rippleAlpha = 0
+        rippleActive = false; rippleAlpha = 0
         invalidate()
     }
 
@@ -548,14 +506,26 @@ class KeyboardView @JvmOverloads constructor(
         longPressRunnable = null
     }
 
-    private fun showPopup(idx: Int) {
-        if (!theme.popupEnabled) return
-        val entry = keys[idx]
-        if (entry.key.longPress.isEmpty()) return
-        popupKey = entry
-        popupOptions = entry.key.longPress
-        popupSelected = -1
-        invalidate()
+    /**
+     * Long press timer fired.
+     * - Neu co longPressDirect -> fire luon (khong hien popup)
+     * - Neu co longPress list + popup enabled -> hien popup
+     */
+    private fun onLongPressFire(idx: Int) {
+        if (idx < 0 || idx >= keys.size) return
+        val key = keys[idx].key
+
+        if (key.longPressDirect != null) {
+            directLongPressFired = true
+            listener?.onKey(key.longPressDirect)
+            return
+        }
+        if (theme.popupEnabled && key.longPress.isNotEmpty()) {
+            popupKey = keys[idx]
+            popupOptions = key.longPress
+            popupSelected = -1
+            invalidate()
+        }
     }
 
     private fun hidePopup() {
@@ -572,6 +542,7 @@ class KeyboardView @JvmOverloads constructor(
             MotionEvent.ACTION_DOWN -> {
                 downIndex = hitTest(event.x, event.y)
                 pressedIndex = downIndex
+                directLongPressFired = false
                 if (downIndex >= 0) {
                     feedback()
                     startRipple(event.x, event.y)
@@ -581,9 +552,10 @@ class KeyboardView @JvmOverloads constructor(
                         startBackspaceRepeat(key)
                     }
 
-                    if (theme.popupEnabled && key.longPress.isNotEmpty() && key.code == KeyDef.CODE_CHAR) {
+                    if (key.longPressDirect != null ||
+                        (theme.popupEnabled && key.longPress.isNotEmpty() && key.code == KeyDef.CODE_CHAR)) {
                         val idx = downIndex
-                        longPressRunnable = Runnable { showPopup(idx) }
+                        longPressRunnable = Runnable { onLongPressFire(idx) }
                         repeatHandler.postDelayed(longPressRunnable!!, 400L)
                     }
                 }
@@ -617,17 +589,22 @@ class KeyboardView @JvmOverloads constructor(
                     invalidate()
                     return true
                 }
-                val upIdx = hitTest(event.x, event.y)
-                if (upIdx >= 0 && upIdx == downIndex) {
-                    val key = keys[upIdx].key
-                    if (key.code == KeyDef.CODE_BACKSPACE) {
-                        if (!repeatFired) {
+                if (directLongPressFired) {
+                    // Long-press direct da fire, khong fire them
+                    directLongPressFired = false
+                } else {
+                    val upIdx = hitTest(event.x, event.y)
+                    if (upIdx >= 0 && upIdx == downIndex) {
+                        val key = keys[upIdx].key
+                        if (key.code == KeyDef.CODE_BACKSPACE) {
+                            if (!repeatFired) {
+                                animatePress(upIdx)
+                                listener?.onKey(key)
+                            }
+                        } else {
                             animatePress(upIdx)
-                            listener?.onKey(key)
+                            fireKey(key)
                         }
-                    } else {
-                        animatePress(upIdx)
-                        fireKey(key)
                     }
                 }
                 cancelRepeat()
@@ -639,6 +616,7 @@ class KeyboardView @JvmOverloads constructor(
             MotionEvent.ACTION_CANCEL -> {
                 cancelRepeat(); cancelMyLongPress(); hidePopup(); endRipple()
                 pressedIndex = -1; downIndex = -1
+                directLongPressFired = false
                 invalidate()
                 return true
             }

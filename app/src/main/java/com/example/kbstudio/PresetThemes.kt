@@ -5,7 +5,17 @@ object PresetThemes {
     data class Preset(val name: String, val theme: KbTheme)
 
     val ALL: List<Preset> = listOf(
-        Preset("Mặc định", KbTheme.default()),
+        Preset("Gọn (Laban-like)", KbTheme.default()),
+
+        Preset("Laban sáng", KbTheme.default().copy(
+            bgColor = 0xFFDFF5C6.toInt(),   // nen xanh nhat
+            keyColor = 0xFFFFFFFF.toInt(),
+            keyPressedColor = 0xFFB8E986.toInt(),
+            keyTextColor = 0xFF000000.toInt(),
+            keyBorderColor = 0xFF7CB342.toInt(),
+            keyBorderWidthDp = 1f, keyCornerRadiusDp = 8f
+        )),
+
         Preset("Dark", KbTheme.default().copy(
             bgColor = 0xFF000000.toInt(), keyColor = 0xFF1F1F1F.toInt(),
             keyPressedColor = 0xFF3D3D3D.toInt(), keyTextColor = 0xFFFFFFFF.toInt(),
@@ -46,6 +56,12 @@ object PresetThemes {
             bgColor = 0xFFECEFF1.toInt(), keyColor = 0xFFFFFFFF.toInt(),
             keyPressedColor = 0xFFB0BEC5.toInt(), keyTextColor = 0xFF000000.toInt(),
             keyBorderColor = 0xFF90A4AE.toInt(), keyBorderWidthDp = 2f
+        )),
+        Preset("Bàn phím cơ", KbTheme.default().copy(
+            bgColor = 0xFF212121.toInt(), keyColor = 0xFF424242.toInt(),
+            keyPressedColor = 0xFF757575.toInt(), keyTextColor = 0xFFFFEB3B.toInt(),
+            keyBorderColor = 0xFF616161.toInt(), keyBorderWidthDp = 2f,
+            keyCornerRadiusDp = 3f
         ))
     )
 }

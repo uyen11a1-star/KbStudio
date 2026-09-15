@@ -23,6 +23,6 @@ data class KeyDef(
         const val CODE_UP = 12
         const val CODE_DOWN = 13
         const val CODE_EMOJI = 14
-        const val CODE_NUMBERS = 15
+        const val CODE_VOICE = 15
     }
 }

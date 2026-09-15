@@ -1,17 +1,29 @@
 package com.example.kbstudio
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.inputmethodservice.InputMethodService
 import android.os.Build
+import android.os.Bundle
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
+import android.widget.Toast
+import androidx.core.content.ContextCompat
+import java.util.Locale
 
 class KbImeService : InputMethodService(), KeyboardView.Listener {
 
     private lateinit var themeManager: ThemeManager
     private lateinit var keyboardView: KeyboardView
+    private var speechRecognizer: SpeechRecognizer? = null
+    private var isListening = false
 
     override fun onCreate() {
         super.onCreate()
@@ -55,6 +67,7 @@ class KbImeService : InputMethodService(), KeyboardView.Listener {
             KeyDef.CODE_LANG -> switchIme()
             KeyDef.CODE_HIDE -> requestHideSelf(0)
             KeyDef.CODE_TAB -> ic.commitText("\t", 1)
+            KeyDef.CODE_VOICE -> startVoiceInput()
             KeyDef.CODE_LEFT -> ic.sendKeyEvent(android.view.KeyEvent(
                 android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_DPAD_LEFT))
             KeyDef.CODE_RIGHT -> ic.sendKeyEvent(android.view.KeyEvent(
@@ -98,5 +111,59 @@ class KbImeService : InputMethodService(), KeyboardView.Listener {
             val imm = getSystemService(InputMethodManager::class.java)
             imm?.showInputMethodPicker()
         }
+    }
+
+    private fun startVoiceInput() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+            != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "Chưa có quyền Micro. Mở app KbStudio để cấp quyền.", Toast.LENGTH_LONG).show()
+            return
+        }
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            Toast.makeText(this, "Thiết bị không hỗ trợ nhận diện giọng nói", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (isListening) return
+        isListening = true
+
+        if (speechRecognizer == null) {
+            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+        }
+        val sr = speechRecognizer ?: return
+
+        sr.setRecognitionListener(object : RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) {}
+            override fun onBeginningOfSpeech() {}
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {}
+            override fun onError(error: Int) {
+                isListening = false
+            }
+            override fun onResults(results: Bundle?) {
+                isListening = false
+                val list = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                val text = list?.firstOrNull()
+                if (!text.isNullOrEmpty()) {
+                    currentInputConnection?.commitText(text, 1)
+                }
+            }
+            override fun onPartialResults(partialResults: Bundle?) {}
+            override fun onEvent(eventType: Int, params: Bundle?) {}
+        })
+
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "vi-VN")
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "vi-VN")
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
+        }
+        sr.startListening(intent)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try { speechRecognizer?.destroy() } catch (_: Exception) {}
+        speechRecognizer = null
     }
 }

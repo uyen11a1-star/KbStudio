@@ -23,6 +23,7 @@ data class KbTheme(
     val showNumberRow: Boolean
 ) {
     companion object {
+        // Mac dinh GON, giong Laban Key
         fun default() = KbTheme(
             bgColor = 0xFF1E1E1E.toInt(),
             bgColorEnd = null,
@@ -31,13 +32,13 @@ data class KbTheme(
             keyColorEnd = null,
             keyPressedColor = 0xFFFF9800.toInt(),
             keyTextColor = 0xFFFFFFFF.toInt(),
-            keyBorderColor = 0xFF555555.toInt(),
-            keyBorderWidthDp = 1f,
-            keyCornerRadiusDp = 8f,
-            fontSizeSp = 20f,
-            keyboardHeightDp = 260,
-            keyGapDp = 3f,
-            rowGapDp = 6f,
+            keyBorderColor = 0xFF444444.toInt(),
+            keyBorderWidthDp = 0.5f,
+            keyCornerRadiusDp = 6f,
+            fontSizeSp = 18f,
+            keyboardHeightDp = 230,
+            keyGapDp = 2f,
+            rowGapDp = 4f,
             soundEnabled = true,
             vibrateEnabled = true,
             telexEnabled = true,

@@ -16,14 +16,14 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.core.content.ContextCompat
-import java.util.Locale
 
 class KbImeService : InputMethodService(), KeyboardView.Listener {
 
     private lateinit var themeManager: ThemeManager
     private lateinit var keyboardView: KeyboardView
+
     private var speechRecognizer: SpeechRecognizer? = null
-    private var isListening = false
+    private var voiceBusy = false
 
     override fun onCreate() {
         super.onCreate()
@@ -44,6 +44,12 @@ class KbImeService : InputMethodService(), KeyboardView.Listener {
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         applyTheme()
+    }
+
+    override fun onFinishInputView(finishingInput: Boolean) {
+        super.onFinishInputView(finishingInput)
+        voiceBusy = false
+        destroyRecognizer()
     }
 
     private fun applyTheme() {
@@ -113,35 +119,65 @@ class KbImeService : InputMethodService(), KeyboardView.Listener {
         }
     }
 
+    private fun destroyRecognizer() {
+        try {
+            speechRecognizer?.cancel()
+            speechRecognizer?.destroy()
+        } catch (_: Exception) {}
+        speechRecognizer = null
+    }
+
     private fun startVoiceInput() {
+        if (voiceBusy) return
+
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this, "Chưa có quyền Micro. Mở app KbStudio để cấp quyền.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this,
+                "Chưa có quyền Micro. Mở app KbStudio để cấp quyền.",
+                Toast.LENGTH_LONG).show()
             return
         }
-        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
-            Toast.makeText(this, "Thiết bị không hỗ trợ nhận diện giọng nói", Toast.LENGTH_SHORT).show()
-            return
-        }
-        if (isListening) return
-        isListening = true
 
-        if (speechRecognizer == null) {
-            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            Toast.makeText(this,
+                "Thiết bị không hỗ trợ. Cài Google app để dùng nhận diện giọng nói.",
+                Toast.LENGTH_LONG).show()
+            return
         }
-        val sr = speechRecognizer ?: return
+
+        voiceBusy = true
+        destroyRecognizer()
+
+        // Dung applicationContext -> on dinh hon service context
+        val sr = SpeechRecognizer.createSpeechRecognizer(applicationContext)
+        speechRecognizer = sr
 
         sr.setRecognitionListener(object : RecognitionListener {
-            override fun onReadyForSpeech(params: Bundle?) {}
+            override fun onReadyForSpeech(params: Bundle?) {
+                Toast.makeText(this@KbImeService, "🎤 Đang nghe...", Toast.LENGTH_SHORT).show()
+            }
             override fun onBeginningOfSpeech() {}
             override fun onRmsChanged(rmsdB: Float) {}
             override fun onBufferReceived(buffer: ByteArray?) {}
             override fun onEndOfSpeech() {}
             override fun onError(error: Int) {
-                isListening = false
+                voiceBusy = false
+                val msg = when (error) {
+                    SpeechRecognizer.ERROR_AUDIO -> "Lỗi âm thanh"
+                    SpeechRecognizer.ERROR_CLIENT -> "Lỗi client"
+                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Thiếu quyền Micro"
+                    SpeechRecognizer.ERROR_NETWORK -> "Lỗi mạng"
+                    SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Mạng timeout"
+                    SpeechRecognizer.ERROR_NO_MATCH -> "Không nhận ra, thử lại"
+                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Đang bận, thử lại sau"
+                    SpeechRecognizer.ERROR_SERVER -> "Lỗi server Google"
+                    SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Không nghe thấy gì"
+                    else -> "Lỗi nhận diện ($error)"
+                }
+                Toast.makeText(this@KbImeService, "🎤 $msg", Toast.LENGTH_SHORT).show()
             }
             override fun onResults(results: Bundle?) {
-                isListening = false
+                voiceBusy = false
                 val list = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 val text = list?.firstOrNull()
                 if (!text.isNullOrEmpty()) {
@@ -157,13 +193,14 @@ class KbImeService : InputMethodService(), KeyboardView.Listener {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "vi-VN")
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "vi-VN")
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, packageName)
         }
         sr.startListening(intent)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        try { speechRecognizer?.destroy() } catch (_: Exception) {}
-        speechRecognizer = null
+        destroyRecognizer()
     }
 }

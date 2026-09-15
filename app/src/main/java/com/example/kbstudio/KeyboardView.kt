@@ -31,6 +31,7 @@ class KeyboardView @JvmOverloads constructor(
     private var shiftState = 0
     private var lastShiftTap = 0L
     private var numRowVisible = false
+    private var toolbarVisible = false
 
     private val keys = ArrayList<KeyEntry>()
     private var pressedIndex = -1
@@ -44,6 +45,7 @@ class KeyboardView @JvmOverloads constructor(
     private val imageCache = ConcurrentHashMap<String, Bitmap?>()
 
     private val keyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+    private val toolbarKeyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
     private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL; color = 0x44000000
     }
@@ -85,12 +87,15 @@ class KeyboardView @JvmOverloads constructor(
     private var rippleActive = false
     private var rippleAnimator: ValueAnimator? = null
 
-    private data class KeyEntry(val key: KeyDef, val rect: RectF, val isNumberRow: Boolean = false)
+    private data class KeyEntry(val key: KeyDef, val rect: RectF,
+                                val isNumberRow: Boolean = false,
+                                val isToolbar: Boolean = false)
 
     companion object {
         const val KIND_LETTERS = 0
         const val KIND_SYMBOLS = 1
         const val KIND_EMOJI = 2
+        const val TOOLBAR_HEIGHT_DP = 26f
     }
 
     init {
@@ -126,6 +131,7 @@ class KeyboardView @JvmOverloads constructor(
         layout = rows
         currentLayoutKind = KIND_EMOJI
         numRowVisible = false
+        toolbarVisible = false
         computeLayout(width.toFloat(), height.toFloat())
         invalidate()
     }
@@ -134,6 +140,7 @@ class KeyboardView @JvmOverloads constructor(
         layout = KeyLayouts.LETTERS
         currentLayoutKind = KIND_LETTERS
         numRowVisible = theme.showNumberRow
+        toolbarVisible = theme.showToolbar
         computeLayout(width.toFloat(), height.toFloat())
         invalidate()
     }
@@ -180,12 +187,15 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun computeLayout(w: Float, h: Float) {
         keys.clear()
-        val allRows = ArrayList<Pair<List<KeyDef>, Boolean>>()
+        data class Row(val list: List<KeyDef>, val isNum: Boolean, val isToolbar: Boolean)
+
+        val rows = ArrayList<Row>()
+        if (toolbarVisible) rows.add(Row(KeyLayouts.TOOLBAR, false, true))
         if (numRowVisible && currentLayoutKind != KIND_EMOJI) {
-            allRows.add(Pair(KeyLayouts.NUMBER_ROW, true))
+            rows.add(Row(KeyLayouts.NUMBER_ROW, true, false))
         }
-        layout.forEach { allRows.add(Pair(it, false)) }
-        if (allRows.isEmpty()) return
+        layout.forEach { rows.add(Row(it, false, false)) }
+        if (rows.isEmpty()) return
 
         val pad = dp(2.5f)
         val rowGap = dp(theme.rowGapDp)
@@ -194,25 +204,33 @@ class KeyboardView @JvmOverloads constructor(
         val innerH = h - pad * 2
         if (innerH <= 0f || innerW <= 0f) return
 
-        val maxUnits = allRows.maxOf { (row, _) ->
-            row.sumOf { it.widthWeight.toDouble() }.toFloat()
+        // Toolbar cao co dinh, cac hang khac chia deu phan con lai
+        val toolbarH = if (toolbarVisible) dp(TOOLBAR_HEIGHT_DP) else 0f
+        val totalGaps = rowGap * (rows.size - 1)
+        val remainingH = innerH - toolbarH - totalGaps
+        val normalRowCount = rows.count { !it.isToolbar }
+        val normalRowH = if (normalRowCount > 0) remainingH / normalRowCount else 0f
+
+        val maxUnits = rows.maxOf { row ->
+            row.list.sumOf { it.widthWeight.toDouble() }.toFloat()
         }.coerceAtLeast(1f)
-
-        val maxKeysInRow = allRows.maxOf { it.first.size }
+        val maxKeysInRow = rows.maxOf { it.list.size }
         val unitW = (innerW - keyGap * (maxKeysInRow - 1)) / maxUnits
-        val rowH = (innerH - rowGap * (allRows.size - 1)) / allRows.size
 
-        allRows.forEachIndexed { ri, (row, isNum) ->
-            val sumW = row.sumOf { it.widthWeight.toDouble() }.toFloat()
-            val rowW = unitW * sumW + keyGap * (row.size - 1)
+        var y = pad
+        rows.forEach { row ->
+            val rowH = if (row.isToolbar) toolbarH else normalRowH
+            val sumW = row.list.sumOf { it.widthWeight.toDouble() }.toFloat()
+            val rowW = unitW * sumW + keyGap * (row.list.size - 1)
             val startX = pad + (innerW - rowW) / 2f
-            val y = pad + ri * (rowH + rowGap)
             var x = startX
-            row.forEach { key ->
+            row.list.forEach { key ->
                 val kw = unitW * key.widthWeight
-                keys.add(KeyEntry(key, RectF(x, y, x + kw, y + rowH), isNum))
+                keys.add(KeyEntry(key, RectF(x, y, x + kw, y + rowH),
+                    row.isNum, row.isToolbar))
                 x += kw + keyGap
             }
+            y += rowH + rowGap
         }
     }
 
@@ -244,6 +262,7 @@ class KeyboardView @JvmOverloads constructor(
         val radius = dp(theme.keyCornerRadiusDp)
         val borderW = dp(theme.keyBorderWidthDp)
         val shadowOffset = dp(2f)
+        val toolbarRadius = dp(theme.keyCornerRadiusDp * 0.6f)
 
         keys.forEachIndexed { i, entry ->
             val rect = entry.rect
@@ -256,11 +275,12 @@ class KeyboardView @JvmOverloads constructor(
                 cx + (rect.right - cx) * scale,
                 cy + (rect.bottom - cy) * scale
             )
+            val r = if (entry.isToolbar) toolbarRadius else radius
 
-            if (!pressed) {
+            if (!pressed && !entry.isToolbar) {
                 val shadowRect = RectF(scaled.left, scaled.top + shadowOffset,
                     scaled.right, scaled.bottom + shadowOffset)
-                canvas.drawRoundRect(shadowRect, radius, radius, shadowPaint)
+                canvas.drawRoundRect(shadowRect, r, r, shadowPaint)
             }
 
             if (pressed) {
@@ -271,12 +291,12 @@ class KeyboardView @JvmOverloads constructor(
                 keyPaint.shader = LinearGradient(0f, scaled.top, 0f, scaled.bottom,
                     theme.keyColor, keyEnd, Shader.TileMode.CLAMP)
             }
-            canvas.drawRoundRect(scaled, radius, radius, keyPaint)
+            canvas.drawRoundRect(scaled, r, r, keyPaint)
 
-            if (borderW > 0f) {
+            if (borderW > 0f && !entry.isToolbar) {
                 borderPaint.color = theme.keyBorderColor
                 borderPaint.strokeWidth = borderW
-                canvas.drawRoundRect(scaled, radius, radius, borderPaint)
+                canvas.drawRoundRect(scaled, r, r, borderPaint)
             }
         }
 
@@ -289,7 +309,7 @@ class KeyboardView @JvmOverloads constructor(
             val rect = entry.rect
             val img = loadKeyImage(entry.key.label)
             if (img != null) {
-                val inset = dp(8f)
+                val inset = dp(if (entry.isToolbar) 4f else 8f)
                 val dst = RectF(rect.left + inset, rect.top + inset,
                     rect.right - inset, rect.bottom - inset)
                 val side = minOf(dst.width(), dst.height())
@@ -298,7 +318,7 @@ class KeyboardView @JvmOverloads constructor(
                 canvas.drawBitmap(img, null, square, null)
             } else {
                 val label = displayLabel(entry.key)
-                var size = sp(theme.fontSizeSp)
+                var size = sp(if (entry.isToolbar) theme.fontSizeSp - 4f else theme.fontSizeSp)
                 textPaint.textSize = size
                 textPaint.color = theme.keyTextColor
                 val maxW = rect.width() - dp(6f)
@@ -319,10 +339,11 @@ class KeyboardView @JvmOverloads constructor(
         if (popupKey != null) return
         if (directLongPressFired) return
         val entry = keys[pressedIndex]
+        if (entry.isToolbar) return
         if (entry.key.code != KeyDef.CODE_CHAR) return
         if (entry.key.output.length != 1) return
         val c = entry.key.output[0]
-        if (!c.isLetter()) return   // chi chu cai, khong bubble cho so/dau
+        if (!c.isLetter()) return
 
         val label = displayLabel(entry.key)
         val bubbleW = dp(48f)
@@ -506,15 +527,9 @@ class KeyboardView @JvmOverloads constructor(
         longPressRunnable = null
     }
 
-    /**
-     * Long press timer fired.
-     * - Neu co longPressDirect -> fire luon (khong hien popup)
-     * - Neu co longPress list + popup enabled -> hien popup
-     */
     private fun onLongPressFire(idx: Int) {
         if (idx < 0 || idx >= keys.size) return
         val key = keys[idx].key
-
         if (key.longPressDirect != null) {
             directLongPressFired = true
             listener?.onKey(key.longPressDirect)
@@ -547,11 +562,7 @@ class KeyboardView @JvmOverloads constructor(
                     feedback()
                     startRipple(event.x, event.y)
                     val key = keys[downIndex].key
-
-                    if (key.code == KeyDef.CODE_BACKSPACE) {
-                        startBackspaceRepeat(key)
-                    }
-
+                    if (key.code == KeyDef.CODE_BACKSPACE) startBackspaceRepeat(key)
                     if (key.longPressDirect != null ||
                         (theme.popupEnabled && key.longPress.isNotEmpty() && key.code == KeyDef.CODE_CHAR)) {
                         val idx = downIndex
@@ -585,12 +596,10 @@ class KeyboardView @JvmOverloads constructor(
                     }
                     hidePopup()
                     pressedIndex = -1; downIndex = -1
-                    endRipple()
-                    invalidate()
+                    endRipple(); invalidate()
                     return true
                 }
                 if (directLongPressFired) {
-                    // Long-press direct da fire, khong fire them
                     directLongPressFired = false
                 } else {
                     val upIdx = hitTest(event.x, event.y)
@@ -609,8 +618,7 @@ class KeyboardView @JvmOverloads constructor(
                 }
                 cancelRepeat()
                 pressedIndex = -1; downIndex = -1
-                endRipple()
-                invalidate()
+                endRipple(); invalidate()
                 return true
             }
             MotionEvent.ACTION_CANCEL -> {

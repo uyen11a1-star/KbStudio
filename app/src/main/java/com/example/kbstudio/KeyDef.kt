@@ -5,8 +5,8 @@ data class KeyDef(
     val output: String,
     val code: Int = CODE_CHAR,
     val widthWeight: Float = 1f,
-    val longPress: List<KeyDef> = emptyList(),       // popup
-    val longPressDirect: KeyDef? = null               // fire thẳng
+    val longPress: List<KeyDef> = emptyList(),
+    val longPressDirect: KeyDef? = null
 ) {
     companion object {
         const val CODE_CHAR = 0
@@ -25,5 +25,7 @@ data class KeyDef(
         const val CODE_DOWN = 13
         const val CODE_EMOJI = 14
         const val CODE_VOICE = 15
+        const val CODE_SEARCH = 16
+        const val CODE_SETTINGS = 17
     }
 }

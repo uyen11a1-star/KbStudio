@@ -48,8 +48,9 @@ class ThemeManager(context: Context) {
         get() = p.getBoolean("popupEnabled", d.popupEnabled); set(v) = p.edit().putBoolean("popupEnabled", v).apply()
     var showNumberRow: Boolean
         get() = p.getBoolean("showNumberRow", d.showNumberRow); set(v) = p.edit().putBoolean("showNumberRow", v).apply()
+    var showToolbar: Boolean
+        get() = p.getBoolean("showToolbar", d.showToolbar); set(v) = p.edit().putBoolean("showToolbar", v).apply()
 
-    // Ảnh cho từng phím: key = label (q, a, space, enter...)
     fun getKeyImage(label: String): String? = p.getString("img_$label", null)
     fun setKeyImage(label: String, uri: String?) {
         p.edit().apply { if (uri == null) remove("img_$label") else putString("img_$label", uri) }.apply()
@@ -69,7 +70,8 @@ class ThemeManager(context: Context) {
         keyGapDp = keyGapDp, rowGapDp = rowGapDp,
         soundEnabled = soundEnabled, vibrateEnabled = vibrateEnabled,
         telexEnabled = telexEnabled, animEnabled = animEnabled,
-        popupEnabled = popupEnabled, showNumberRow = showNumberRow
+        popupEnabled = popupEnabled, showNumberRow = showNumberRow,
+        showToolbar = showToolbar
     )
 
     fun applyPreset(t: KbTheme) {
@@ -83,6 +85,7 @@ class ThemeManager(context: Context) {
         soundEnabled = t.soundEnabled; vibrateEnabled = t.vibrateEnabled
         telexEnabled = t.telexEnabled; animEnabled = t.animEnabled
         popupEnabled = t.popupEnabled; showNumberRow = t.showNumberRow
+        showToolbar = t.showToolbar
     }
 
     fun resetAll() = p.edit().clear().apply()

@@ -20,7 +20,8 @@ data class KbTheme(
     val telexEnabled: Boolean,
     val animEnabled: Boolean,
     val popupEnabled: Boolean,
-    val showNumberRow: Boolean
+    val showNumberRow: Boolean,
+    val showToolbar: Boolean
 ) {
     companion object {
         fun default() = KbTheme(
@@ -33,17 +34,18 @@ data class KbTheme(
             keyTextColor = 0xFFFFFFFF.toInt(),
             keyBorderColor = 0x00000000,
             keyBorderWidthDp = 0f,
-            keyCornerRadiusDp = 5f,          // bo goc nho -> giong Laban
-            fontSizeSp = 18f,
-            keyboardHeightDp = 200,           // chuan Laban
-            keyGapDp = 1.5f,                  // rat sat
+            keyCornerRadiusDp = 8f,
+            fontSizeSp = 19f,
+            keyboardHeightDp = 240,
+            keyGapDp = 2f,
             rowGapDp = 4f,
             soundEnabled = true,
             vibrateEnabled = true,
             telexEnabled = true,
             animEnabled = true,
             popupEnabled = true,
-            showNumberRow = false
+            showNumberRow = true,      // Luon hien nhu Laban
+            showToolbar = true          // Toolbar tren cung
         )
     }
 }

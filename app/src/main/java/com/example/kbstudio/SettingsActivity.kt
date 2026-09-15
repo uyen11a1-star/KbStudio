@@ -1,6 +1,7 @@
 package com.example.kbstudio
 
 import android.app.AlertDialog
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -8,6 +9,8 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
+import android.view.WindowManager
+import android.view.inputmethod.InputMethodManager
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -32,7 +35,7 @@ class SettingsActivity : AppCompatActivity() {
         if (uri != null && pendingImageKey != null) {
             tryPersist(uri)
             tm.setKeyImage(pendingImageKey!!, uri.toString())
-            Toast.makeText(this, "Đã gán ảnh cho phím '${pendingImageKey}'", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Đã gán ảnh cho '${pendingImageKey}'", Toast.LENGTH_SHORT).show()
             refresh()
         }
         pendingImageKey = null
@@ -44,8 +47,16 @@ class SettingsActivity : AppCompatActivity() {
         } catch (_: Exception) {}
     }
 
+    override fun onResume() {
+        super.onResume()
+        // An ban phim he thong khi dang xem Settings
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+        imm?.hideSoftInputFromWindow(window.decorView.windowToken, 0)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
         tm = ThemeManager(this)
 
         val scroll = ScrollView(this).apply { setBackgroundColor(0xFF111111.toInt()) }
@@ -58,7 +69,7 @@ class SettingsActivity : AppCompatActivity() {
 
         root.addView(title("⌨️ Tùy chỉnh bàn phím"))
         root.addView(TextView(this).apply {
-            text = "💡 Giữ space = mic, giữ ?123 = đổi bàn phím, giữ a/e/o/u/i/y/d = biến thể"
+            text = "💡 Giữ space = mic • Giữ ?123 = đổi bàn phím • Giữ a/e/o/u/i/y/d = biến thể"
             setTextColor(0xFF888888.toInt()); textSize = 12f
             setPadding(0, 0, 0, dp(10f))
         })
@@ -73,18 +84,19 @@ class SettingsActivity : AppCompatActivity() {
         preview.resetToLetters()
 
         root.addView(section("🎨 Theme có sẵn"))
+        val presetScroll = HorizontalScrollView(this)
         val presetRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(0, 0, 0, dp(8f))
         }
-        val presetScroll = HorizontalScrollView(this)
         PresetThemes.ALL.forEach { preset ->
             val b = Button(this).apply {
                 text = preset.name; textSize = 12f
                 setOnClickListener {
                     tm.applyPreset(preset.theme)
                     refresh()
-                    Toast.makeText(this@SettingsActivity, "Đã áp dụng: ${preset.name}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@SettingsActivity, "Đã áp dụng: ${preset.name}",
+                        Toast.LENGTH_SHORT).show()
                 }
             }
             b.layoutParams = LinearLayout.LayoutParams(
@@ -108,7 +120,7 @@ class SettingsActivity : AppCompatActivity() {
 
         root.addView(section("📏 Kích thước"))
         root.addView(slider("Cỡ chữ (sp)", 12f, 30f, tm.fontSizeSp) { tm.fontSizeSp = it; refresh() })
-        root.addView(slider("Chiều cao bàn phím (dp)", 160f, 320f, tm.keyboardHeightDp.toFloat()) {
+        root.addView(slider("Chiều cao bàn phím (dp)", 180f, 340f, tm.keyboardHeightDp.toFloat()) {
             tm.keyboardHeightDp = it.toInt(); refresh()
         })
         root.addView(slider("Bo góc phím (dp)", 0f, 25f, tm.keyCornerRadiusDp) { tm.keyCornerRadiusDp = it; refresh() })
@@ -120,7 +132,10 @@ class SettingsActivity : AppCompatActivity() {
         root.addView(toggle("Hiện hàng số trên cùng", tm.showNumberRow) {
             tm.showNumberRow = it; refresh()
         })
-        root.addView(toggle("Bật popup khi nhấn giữ", tm.popupEnabled) {
+        root.addView(toggle("Hiện toolbar trên cùng", tm.showToolbar) {
+            tm.showToolbar = it; refresh()
+        })
+        root.addView(toggle("Bật popup nhấn giữ", tm.popupEnabled) {
             tm.popupEnabled = it; refresh()
         })
 
@@ -132,7 +147,7 @@ class SettingsActivity : AppCompatActivity() {
         root.addView(section("🇻🇳 Tiếng Việt"))
         root.addView(toggle("Bật Telex", tm.telexEnabled) { tm.telexEnabled = it })
 
-        root.addView(section("🖼️ Ảnh nền bàn phím"))
+        root.addView(section("🖼️ Ảnh nền"))
         root.addView(rowButton("Chọn ảnh nền") { pickBgImage.launch(arrayOf("image/*")) })
         root.addView(rowButton("Xóa ảnh nền") { tm.bgImageUri = null; refresh() })
 
@@ -157,7 +172,7 @@ class SettingsActivity : AppCompatActivity() {
         root.addView(keyScroll)
         root.addView(rowButton("Xóa toàn bộ ảnh trên phím") {
             tm.clearAllKeyImages()
-            Toast.makeText(this, "Đã xóa ảnh trên phím", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Đã xóa", Toast.LENGTH_SHORT).show()
             refresh()
         })
 
@@ -177,7 +192,7 @@ class SettingsActivity : AppCompatActivity() {
                     0 -> { pendingImageKey = label
                         pickKeyImage.launch(arrayOf("image/*")) }
                     1 -> { tm.setKeyImage(label, null)
-                        Toast.makeText(this, "Đã xóa ảnh phím '$label'", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "Đã xóa ảnh '$label'", Toast.LENGTH_SHORT).show()
                         refresh() }
                 }
             }.show()

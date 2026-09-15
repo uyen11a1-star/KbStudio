@@ -74,6 +74,11 @@ class KbImeService : InputMethodService(), KeyboardView.Listener {
             KeyDef.CODE_HIDE -> requestHideSelf(0)
             KeyDef.CODE_TAB -> ic.commitText("\t", 1)
             KeyDef.CODE_VOICE -> startVoiceInput()
+            KeyDef.CODE_SEARCH -> {
+                val ok = ic.performEditorAction(EditorInfo.IME_ACTION_SEARCH)
+                if (!ok) ic.commitText("?", 1)
+            }
+            KeyDef.CODE_SETTINGS -> openAppSettings()
             KeyDef.CODE_LEFT -> ic.sendKeyEvent(android.view.KeyEvent(
                 android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_DPAD_LEFT))
             KeyDef.CODE_RIGHT -> ic.sendKeyEvent(android.view.KeyEvent(
@@ -85,9 +90,21 @@ class KbImeService : InputMethodService(), KeyboardView.Listener {
         }
     }
 
+    private fun openAppSettings() {
+        try {
+            val intent = Intent(this, SettingsActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Không mở được Settings: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun commitChar(text: String) {
         val ic = currentInputConnection ?: return
-        if (themeManager.telexEnabled && text.length == 1 && text[0].lowercaseChar() in "aăâeêioôơuưyd") {
+        if (themeManager.telexEnabled && text.length == 1 &&
+            text[0].lowercaseChar() in "aăâeêioôơuưyd") {
             val before = ic.getTextBeforeCursor(2, 0)?.toString() ?: ""
             val result = TelexEngine.tryApply(before, text[0])
             if (result != null) {
@@ -129,29 +146,21 @@ class KbImeService : InputMethodService(), KeyboardView.Listener {
 
     private fun startVoiceInput() {
         if (voiceBusy) return
-
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this,
-                "Chưa có quyền Micro. Mở app KbStudio để cấp quyền.",
+            Toast.makeText(this, "Chưa có quyền Micro. Mở app KbStudio để cấp.",
                 Toast.LENGTH_LONG).show()
             return
         }
-
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
-            Toast.makeText(this,
-                "Thiết bị không hỗ trợ. Cài Google app để dùng nhận diện giọng nói.",
+            Toast.makeText(this, "Thiết bị không hỗ trợ. Cài Google app.",
                 Toast.LENGTH_LONG).show()
             return
         }
-
         voiceBusy = true
         destroyRecognizer()
-
-        // Dung applicationContext -> on dinh hon service context
         val sr = SpeechRecognizer.createSpeechRecognizer(applicationContext)
         speechRecognizer = sr
-
         sr.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {
                 Toast.makeText(this@KbImeService, "🎤 Đang nghe...", Toast.LENGTH_SHORT).show()
@@ -169,10 +178,10 @@ class KbImeService : InputMethodService(), KeyboardView.Listener {
                     SpeechRecognizer.ERROR_NETWORK -> "Lỗi mạng"
                     SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Mạng timeout"
                     SpeechRecognizer.ERROR_NO_MATCH -> "Không nhận ra, thử lại"
-                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Đang bận, thử lại sau"
+                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Đang bận"
                     SpeechRecognizer.ERROR_SERVER -> "Lỗi server Google"
                     SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Không nghe thấy gì"
-                    else -> "Lỗi nhận diện ($error)"
+                    else -> "Lỗi ($error)"
                 }
                 Toast.makeText(this@KbImeService, "🎤 $msg", Toast.LENGTH_SHORT).show()
             }
@@ -180,14 +189,11 @@ class KbImeService : InputMethodService(), KeyboardView.Listener {
                 voiceBusy = false
                 val list = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 val text = list?.firstOrNull()
-                if (!text.isNullOrEmpty()) {
-                    currentInputConnection?.commitText(text, 1)
-                }
+                if (!text.isNullOrEmpty()) currentInputConnection?.commitText(text, 1)
             }
             override fun onPartialResults(partialResults: Bundle?) {}
             override fun onEvent(eventType: Int, params: Bundle?) {}
         })
-
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "vi-VN")

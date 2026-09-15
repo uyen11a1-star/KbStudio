@@ -24,13 +24,8 @@ class KbImeService : InputMethodService(), KeyboardView.Listener {
         keyboardView.listener = this
         keyboardView.previewMode = false
         applyTheme()
-        container.addView(
-            keyboardView,
-            FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-        )
+        container.addView(keyboardView, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         return container
     }
 
@@ -42,10 +37,10 @@ class KbImeService : InputMethodService(), KeyboardView.Listener {
     private fun applyTheme() {
         val t = themeManager.load()
         keyboardView.setTheme(t)
+        keyboardView.resetToLetters()
         val h = (t.keyboardHeightDp * resources.displayMetrics.density).toInt()
         keyboardView.layoutParams = FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, h
-        )
+            ViewGroup.LayoutParams.MATCH_PARENT, h)
     }
 
     override fun onEvaluateFullscreenMode(): Boolean = false
@@ -54,20 +49,26 @@ class KbImeService : InputMethodService(), KeyboardView.Listener {
         val ic = currentInputConnection ?: return
         when (key.code) {
             KeyDef.CODE_CHAR -> commitChar(key.output)
-            KeyDef.CODE_SPACE -> {
-                ic.commitText(" ", 1)
-            }
-            KeyDef.CODE_BACKSPACE -> {
-                ic.deleteSurroundingText(1, 0)
-            }
+            KeyDef.CODE_SPACE -> ic.commitText(" ", 1)
+            KeyDef.CODE_BACKSPACE -> ic.deleteSurroundingText(1, 0)
             KeyDef.CODE_ENTER -> handleEnter(ic)
             KeyDef.CODE_LANG -> switchIme()
+            KeyDef.CODE_HIDE -> requestHideSelf(0)
+            KeyDef.CODE_TAB -> ic.commitText("\t", 1)
+            KeyDef.CODE_LEFT -> ic.sendKeyEvent(android.view.KeyEvent(
+                android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_DPAD_LEFT))
+            KeyDef.CODE_RIGHT -> ic.sendKeyEvent(android.view.KeyEvent(
+                android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_DPAD_RIGHT))
+            KeyDef.CODE_UP -> ic.sendKeyEvent(android.view.KeyEvent(
+                android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_DPAD_UP))
+            KeyDef.CODE_DOWN -> ic.sendKeyEvent(android.view.KeyEvent(
+                android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_DPAD_DOWN))
         }
     }
 
     private fun commitChar(text: String) {
         val ic = currentInputConnection ?: return
-        if (themeManager.telexEnabled && text.length == 1) {
+        if (themeManager.telexEnabled && text.length == 1 && text[0].lowercaseChar() in "aăâeêioôơuưyd") {
             val before = ic.getTextBeforeCursor(2, 0)?.toString() ?: ""
             val result = TelexEngine.tryApply(before, text[0])
             if (result != null) {
@@ -82,8 +83,7 @@ class KbImeService : InputMethodService(), KeyboardView.Listener {
 
     private fun handleEnter(ic: android.view.inputmethod.InputConnection) {
         val info = currentInputEditorInfo
-        val action = info?.imeOptions?.and(EditorInfo.IME_MASK_ACTION)
-            ?: EditorInfo.IME_ACTION_NONE
+        val action = info?.imeOptions?.and(EditorInfo.IME_MASK_ACTION) ?: EditorInfo.IME_ACTION_NONE
         if (action != EditorInfo.IME_ACTION_NONE && action != EditorInfo.IME_ACTION_UNSPECIFIED) {
             ic.performEditorAction(action)
         } else {

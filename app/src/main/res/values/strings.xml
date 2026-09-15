@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">KbStudio</string>
+    <string name="subtype_vi">Tiếng Việt (KbStudio)</string>
+    <string name="subtype_en">English (KbStudio)</string>
+</resources>

@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.KbStudio" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#FF9800</item>
+        <item name="colorPrimaryVariant">#F57C00</item>
+        <item name="colorOnPrimary">#000000</item>
+        <item name="colorSecondary">#03A9F4</item>
+        <item name="android:windowBackground">#111111</item>
+    </style>
+</resources>
